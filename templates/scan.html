@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gate Scanner</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #1a1f2e; color: #fff; min-height: 100vh; }
+  header { background: #2F5496; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 18px; }
+  header a { color: #c9d6ef; font-size: 13px; text-decoration: none; }
+  #reader { width: 100%; max-width: 480px; margin: 24px auto; border-radius: 12px; overflow: hidden; }
+  #status {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center; z-index: 100; padding: 24px;
+  }
+  #status.show { display: flex; }
+  .first  { background: #0f7b3a; }
+  .used   { background: #a01c2c; }
+  .invalid{ background: #6b1f8a; }
+  .icon { font-size: 96px; margin-bottom: 12px; }
+  .title { font-size: 44px; font-weight: bold; margin-bottom: 10px; }
+  .name { font-size: 28px; margin-bottom: 8px; }
+  .detail { font-size: 18px; opacity: 0.9; }
+  #error { max-width: 480px; margin: 24px auto; text-align: center; color: #ff9d9d; display: none; padding: 0 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gate Scanner &mdash; {{ event }}</h1>
+  <a href="/admin">Dashboard</a>
+</header>
+<div id="reader"></div>
+<p id="error">Camera could not start. Make sure this page is opened over https:// or localhost, and the camera permission is granted. As a fallback, any camera app can open the QR link directly.</p>
+<div id="status">
+  <div class="icon" id="s-icon"></div>
+  <div class="title" id="s-title"></div>
+  <div class="name" id="s-name"></div>
+  <div class="detail" id="s-detail"></div>
+</div>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+const statusEl = document.getElementById("status");
+let busy = false;
+let scanner = null;
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value == null ? "" : String(value);
+  return div.innerHTML;
+}
+
+function showResult(data) {
+  statusEl.className = "show " + (data.status === "first" ? "first" : data.status === "used" ? "used" : "invalid");
+  if (data.status === "first") {
+    document.getElementById("s-icon").innerHTML = "&#10004;";
+    document.getElementById("s-title").textContent = "WELCOME";
+    document.getElementById("s-name").textContent = data.name || "";
+    document.getElementById("s-detail").textContent = "You can enter.";
+    if (navigator.vibrate) navigator.vibrate([200, 80, 200]);
+  } else if (data.status === "used") {
+    document.getElementById("s-icon").innerHTML = "&#10008;";
+    document.getElementById("s-title").textContent = "ALREADY USED";
+    document.getElementById("s-name").textContent = data.name || "";
+    document.getElementById("s-detail").textContent = data.scanned_at ? "Scanned at " + data.scanned_at : "";
+    if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400]);
+  } else {
+    document.getElementById("s-icon").innerHTML = "&#9888;";
+    document.getElementById("s-title").textContent = "INVALID";
+    document.getElementById("s-name").textContent = "";
+    document.getElementById("s-detail").textContent = "Not a valid QR code for this event.";
+    if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400]);
+  }
+  setTimeout(function () { statusEl.className = ""; }, 2600);
+}
+
+function handleText(decodedText) {
+  if (busy) return;
+  let token = "";
+  try {
+    const url = new URL(decodedText);
+    const parts = url.pathname.split("/").filter(Boolean);
+    token = parts[parts.length - 1] || "";
+  } catch (e) {
+    token = decodedText.trim();
+  }
+  if (!token) return;
+  busy = true;
+  fetch("/api/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: token })
+  })
+    .then(function (r) { return r.json(); })
+    .then(showResult)
+    .catch(function () {
+      showResult({ status: "invalid" });
+    })
+    .finally(function () {
+      setTimeout(function () { busy = false; }, 2600);
+    });
+}
+
+if (typeof Html5Qrcode !== "undefined") {
+  scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 240, height: 240 } },
+    handleText,
+    function () {}
+  ).catch(function () {
+    document.getElementById("error").style.display = "block";
+  });
+} else {
+  document.getElementById("error").style.display = "block";
+}
+</script>
+</body>
+</html>

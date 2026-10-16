@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: event-qr
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt gunicorn
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT server:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.9
+      - key: EVENT_NAME
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: SENDER_EMAIL
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: EMAIL_SUBJECT
+        sync: false

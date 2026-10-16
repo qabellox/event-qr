@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check-in Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f4f6fb; color: #222; }
+  header { background: #2F5496; color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  header h1 { font-size: 18px; }
+  header .links a { color: #c9d6ef; font-size: 13px; margin-left: 14px; text-decoration: none; }
+  .stats { display: flex; gap: 12px; padding: 16px 20px; flex-wrap: wrap; }
+  .stat { background: #fff; border-radius: 8px; padding: 12px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); min-width: 130px; }
+  .stat .num { font-size: 26px; font-weight: bold; }
+  .stat .lbl { font-size: 12px; color: #777; }
+  .toolbar { padding: 0 20px 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+  #scanbox, #search {
+    padding: 10px 12px; font-size: 15px; border: 1px solid #ccd; border-radius: 6px; background: #fff;
+  }
+  #scanbox { flex: 1; min-width: 240px; border: 2px solid #2F5496; }
+  #search { min-width: 200px; }
+  table { width: calc(100% - 40px); margin: 0 20px 24px; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  th, td { padding: 10px 12px; text-align: left; font-size: 14px; border-bottom: 1px solid #eee; }
+  th { background: #eef2f9; font-size: 12px; text-transform: uppercase; color: #556; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+  .yes { background: #c6efce; color: #14682e; }
+  .no { background: #ffc7ce; color: #8a1220; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Check-in Dashboard &mdash; {{ event }}</h1>
+  <div class="links">
+    <a href="/scan">Open Gate Scanner</a>
+    <a href="/admin/export">Export Excel</a>
+  </div>
+</header>
+<div class="stats">
+  <div class="stat"><div class="num" id="st-total">-</div><div class="lbl">Total</div></div>
+  <div class="stat"><div class="num" id="st-scanned">-</div><div class="lbl">Checked in</div></div>
+  <div class="stat"><div class="num" id="st-not">-</div><div class="lbl">Not yet</div></div>
+  <div class="stat"><div class="num" id="st-sent">-</div><div class="lbl">Emails sent</div></div>
+</div>
+<div class="toolbar">
+  <input id="scanbox" type="text" placeholder="Scanner input: scan a QR code or paste a check-in link here, then press Enter" autofocus>
+  <input id="search" type="text" placeholder="Search name or email">
+</div>
+<table>
+  <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Email Sent</th><th>Scanned</th><th>Scanned At</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="6">Loading...</td></tr></tbody>
+</table>
+<script>
+const scanbox = document.getElementById("scanbox");
+const search = document.getElementById("search");
+let allRows = [];
+
+scanbox.addEventListener("keydown", function (e) {
+  if (e.key !== "Enter") return;
+  const value = scanbox.value.trim();
+  scanbox.value = "";
+  if (!value) return;
+  let token = "";
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split("/").filter(Boolean);
+    token = parts[parts.length - 1] || "";
+  } catch (err) {
+    const match = value.match(/check\/([A-Za-z0-9_-]+)/);
+    token = match ? match[1] : value;
+  }
+  if (token) window.location.href = "/check/" + encodeURIComponent(token);
+});
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value == null ? "" : String(value);
+  return div.innerHTML;
+}
+
+function render() {
+  const q = search.value.trim().toLowerCase();
+  const filtered = q
+    ? allRows.filter(function (r) {
+        return r.name.toLowerCase().indexOf(q) !== -1 || r.email.toLowerCase().indexOf(q) !== -1;
+      })
+    : allRows;
+  const html = filtered.map(function (r, i) {
+    return "<tr>" +
+      "<td>" + (i + 1) + "</td>" +
+      "<td>" + escapeHtml(r.name) + "</td>" +
+      "<td>" + escapeHtml(r.email) + "</td>" +
+      '<td><span class="badge ' + (r.sent ? "yes" : "no") + '">' + (r.sent ? "TRUE" : "FALSE") + "</span></td>" +
+      '<td><span class="badge ' + (r.scanned ? "yes" : "no") + '">' + (r.scanned ? "TRUE" : "FALSE") + "</span></td>" +
+      "<td>" + escapeHtml(r.scanned_at || "") + "</td>" +
+      "</tr>";
+  }).join("");
+  document.getElementById("rows").innerHTML = html || '<tr><td colspan="6">No matches</td></tr>';
+}
+
+function refresh() {
+  fetch("/api/attendees")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      document.getElementById("st-total").textContent = data.total;
+      document.getElementById("st-scanned").textContent = data.scanned;
+      document.getElementById("st-not").textContent = data.total - data.scanned;
+      document.getElementById("st-sent").textContent = data.sent;
+      allRows = data.attendees;
+      render();
+    })
+    .catch(function () {});
+}
+
+search.addEventListener("input", render);
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>

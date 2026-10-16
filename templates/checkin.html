@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check-in</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #1a1f2e;
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .card { padding: 40px 24px; max-width: 640px; width: 92%; }
+  .waiting { color: #8b93a7; font-size: 20px; }
+  .icon { font-size: 96px; line-height: 1.1; margin-bottom: 16px; }
+  .title { font-size: 44px; font-weight: bold; margin-bottom: 12px; }
+  .name { font-size: 30px; margin-bottom: 8px; }
+  .detail { font-size: 18px; opacity: 0.85; }
+  .first  { background: #0f7b3a; }
+  .used   { background: #a01c2c; }
+  .invalid{ background: #6b1f8a; }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="waiting" id="content">Checking...</div>
+</div>
+<script>
+const TOKEN = {{ token | tojson }};
+const card = document.getElementById("card");
+const content = document.getElementById("content");
+
+function render(data) {
+  if (data.status === "first") {
+    card.className = "card first";
+    content.innerHTML =
+      '<div class="icon">&#10004;</div>' +
+      '<div class="title">WELCOME</div>' +
+      '<div class="name">' + escapeHtml(data.name) + '</div>' +
+      '<div class="detail">You can enter.</div>';
+    if (navigator.vibrate) navigator.vibrate([200, 80, 200]);
+  } else if (data.status === "used") {
+    card.className = "card used";
+    content.innerHTML =
+      '<div class="icon">&#10008;</div>' +
+      '<div class="title">ALREADY USED</div>' +
+      '<div class="name">' + escapeHtml(data.name) + '</div>' +
+      '<div class="detail">This QR code was scanned at ' + escapeHtml(data.scanned_at) + '</div>';
+    if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400]);
+  } else {
+    card.className = "card invalid";
+    content.innerHTML =
+      '<div class="icon">&#9888;</div>' +
+      '<div class="title">INVALID</div>' +
+      '<div class="detail">This QR code is not valid for this event.</div>';
+    if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400]);
+  }
+}
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value == null ? "" : String(value);
+  return div.innerHTML;
+}
+
+fetch("/api/validate", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ token: TOKEN })
+})
+  .then(function (r) { return r.json(); })
+  .then(render)
+  .catch(function () {
+    card.className = "card used";
+    content.innerHTML = '<div class="icon">&#9888;</div><div class="title">CONNECTION ERROR</div><div class="detail">Could not reach the server. Check internet and try again.</div>';
+  });
+</script>
+</body>
+</html>
