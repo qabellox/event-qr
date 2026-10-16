@@ -3,7 +3,7 @@ import sqlite3
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "tokens.db"
+DB_PATH = Path(os.environ.get("DB_PATH", str(BASE_DIR / "tokens.db")))
 QR_DIR = BASE_DIR / "qr_codes"
 EXCEL_PATH = BASE_DIR / "attendees.xlsx"
 
