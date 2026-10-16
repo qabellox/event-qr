@@ -22,10 +22,10 @@ def load_dotenv(path=BASE_DIR / ".env"):
 load_dotenv()
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000").rstrip("/")
-EVENT_NAME = os.environ.get("EVENT_NAME", "Our Event")
+EVENT_NAME = os.environ.get("EVENT_NAME", "مؤتمر الصحة النفسية")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "adonandoqabello@gmail.com")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
-EMAIL_SUBJECT = os.environ.get("EMAIL_SUBJECT", "Your entry QR code - {event}")
+EMAIL_SUBJECT = os.environ.get("EMAIL_SUBJECT", "تذكرتك الإلكترونية - {event}")
 EMAIL_TEMPLATE_PATH = BASE_DIR / "email_template.html"
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
 SMTP_HOST = "smtp.gmail.com"
