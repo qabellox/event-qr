@@ -75,10 +75,13 @@ def api_attendees():
 def admin_import():
     if not ADMIN_KEY or request.headers.get("X-Admin-Key", "") != ADMIN_KEY:
         return jsonify({"error": "unauthorized"}), 401
-    people = (request.get_json(silent=True) or {}).get("attendees", [])
+    data = request.get_json(silent=True) or {}
+    people = data.get("attendees", [])
     conn = get_db()
     added = updated = 0
     try:
+        if data.get("replace"):
+            conn.execute("DELETE FROM attendees")
         for person in people:
             token = str(person.get("token", "")).strip()
             name = str(person.get("name", "")).strip()

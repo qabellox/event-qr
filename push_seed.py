@@ -17,7 +17,7 @@ def push():
     if not rows:
         print("No attendees in the local database. Run generate.py first.")
         return 1
-    payload = json.dumps({"attendees": [dict(r) for r in rows]}).encode("utf-8")
+    payload = json.dumps({"replace": True, "attendees": [dict(r) for r in rows]}).encode("utf-8")
     request = urllib.request.Request(
         BASE_URL + "/admin/import",
         data=payload,

@@ -20,6 +20,12 @@ from config import (
     init_db,
 )
 
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 FALLBACK_HTML = """\
 <!DOCTYPE html>
 <html>

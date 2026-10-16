@@ -1,6 +1,8 @@
 import argparse
+import re
 import secrets
 import sys
+import unicodedata
 from pathlib import Path
 
 import qrcode
@@ -9,6 +11,24 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Font, PatternFill
 
 from config import BASE_URL, EXCEL_PATH, QR_DIR, init_db
+
+
+_EMAIL_VALID = re.compile(r"^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$")
+
+
+def clean_email(raw):
+    text = unicodedata.normalize("NFKC", str(raw))
+    text = "".join(ch for ch in text if not unicodedata.category(ch).startswith("C") and not ch.isspace())
+    text = text.replace("\u0261", "g").replace("\u0262", "G")
+    text = re.sub(r"\.+@", "@", text)
+    text = re.sub(r"@\.+", "@", text)
+    text = text.strip(".").lower()
+    text = re.sub(r"(gmail|yahoo|hotmail|outlook|icloud)com$", r"\1.com", text)
+    return text
+
+
+def valid_email(email):
+    return bool(_EMAIL_VALID.match(email))
 
 
 def load_attendees(excel_path):
@@ -34,7 +54,7 @@ def load_attendees(excel_path):
         email = next((c for c in cells if "@" in c), None)
         if not email:
             continue
-        email = "".join(email.split()).lower()
+        email = clean_email(email)
         if "@" not in email or email in seen_emails:
             continue
         candidates = [c for c in cells if "@" not in c]
