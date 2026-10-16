@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 checkin_status.xlsx
 attendees_with_qr.xlsx
+*.xlsx
+~$*.xlsx

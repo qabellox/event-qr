@@ -91,11 +91,18 @@ def connect_smtp():
     return server
 
 
-def send_batch(limit=100, dry_run=False, delay=2.0):
+def send_batch(limit=100, dry_run=False, delay=2.0, only=None):
     conn = init_db()
-    rows = conn.execute(
-        "SELECT id, name, email, token FROM attendees WHERE sent=0 ORDER BY id LIMIT ?", (limit,)
-    ).fetchall()
+    if only:
+        placeholders = ",".join("?" for _ in only)
+        rows = conn.execute(
+            f"SELECT id, name, email, token FROM attendees WHERE sent=0 AND email IN ({placeholders}) ORDER BY id",
+            tuple(only),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, name, email, token FROM attendees WHERE sent=0 ORDER BY id LIMIT ?", (limit,)
+        ).fetchall()
     if not rows:
         conn.close()
         return {"attempted": 0, "sent": 0, "failed": 0, "message": "No unsent attendees remaining."}
@@ -161,9 +168,11 @@ def main():
     parser.add_argument("--limit", type=int, default=100, help="Max emails this run (default 100)")
     parser.add_argument("--dry-run", action="store_true", help="Do not actually send")
     parser.add_argument("--delay", type=float, default=2.0, help="Seconds between emails")
+    parser.add_argument("--to", default="", help="Comma-separated emails to send only to these (test mode)")
     args = parser.parse_args()
+    only = [e.strip().lower() for e in args.to.split(",") if e.strip()] or None
     try:
-        result = send_batch(limit=args.limit, dry_run=args.dry_run, delay=args.delay)
+        result = send_batch(limit=args.limit, dry_run=args.dry_run, delay=args.delay, only=only)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)

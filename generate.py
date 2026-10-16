@@ -70,9 +70,12 @@ def generate(excel_path=None):
             added += 1
         qr_path = QR_DIR / f"{token}.png"
         if not qr_path.exists():
-            img = qrcode.make(f"{BASE_URL}/check/{token}")
-            img.save(qr_path)
+            qrcode.make(f"{BASE_URL}/check/{token}").save(qr_path)
     conn.commit()
+    for row in conn.execute("SELECT token FROM attendees"):
+        qr_path = QR_DIR / f"{row['token']}.png"
+        if not qr_path.exists():
+            qrcode.make(f"{BASE_URL}/check/{row['token']}").save(qr_path)
 
     total = conn.execute("SELECT COUNT(*) AS c FROM attendees").fetchone()["c"]
     export_workbook(conn)
