@@ -27,6 +27,7 @@ SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "adonandoqabello@gmail.com")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 EMAIL_SUBJECT = os.environ.get("EMAIL_SUBJECT", "Your entry QR code - {event}")
 EMAIL_TEMPLATE_PATH = BASE_DIR / "email_template.html"
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 

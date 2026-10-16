@@ -3,7 +3,7 @@ import os
 
 from flask import Flask, jsonify, render_template, request, send_file
 
-from config import EVENT_NAME, get_db, init_db
+from config import ADMIN_KEY, EVENT_NAME, get_db, init_db
 from generate import export_status
 
 app = Flask(__name__)
@@ -69,6 +69,41 @@ def api_attendees():
             "attendees": attendees,
         }
     )
+
+
+@app.post("/admin/import")
+def admin_import():
+    if not ADMIN_KEY or request.headers.get("X-Admin-Key", "") != ADMIN_KEY:
+        return jsonify({"error": "unauthorized"}), 401
+    people = (request.get_json(silent=True) or {}).get("attendees", [])
+    conn = get_db()
+    added = updated = 0
+    try:
+        for person in people:
+            token = str(person.get("token", "")).strip()
+            name = str(person.get("name", "")).strip()
+            email = str(person.get("email", "")).strip().lower()
+            if not token or not name or not email:
+                continue
+            existing = conn.execute(
+                "SELECT id FROM attendees WHERE token=? OR email=?", (token, email)
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    "UPDATE attendees SET name=?, email=? WHERE id=?",
+                    (name, email, existing["id"]),
+                )
+                updated += 1
+            else:
+                conn.execute(
+                    "INSERT INTO attendees (name, email, token) VALUES (?, ?, ?)",
+                    (name, email, token),
+                )
+                added += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"added": added, "updated": updated})
 
 
 @app.get("/admin/export")

@@ -18,3 +18,5 @@ services:
         sync: false
       - key: EMAIL_SUBJECT
         sync: false
+      - key: ADMIN_KEY
+        sync: false
