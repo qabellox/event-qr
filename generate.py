@@ -11,33 +11,34 @@ from openpyxl.styles import Font, PatternFill
 from config import BASE_URL, EXCEL_PATH, QR_DIR, init_db
 
 
-def _find_columns(ws):
-    for row in ws.iter_rows(min_row=1, max_row=5):
-        name_col = email_col = None
-        for cell in row:
-            value = str(cell.value or "").strip().lower()
-            if not value:
-                continue
-            if name_col is None and "name" in value:
-                name_col = cell.column
-            elif email_col is None and ("mail" in value or "email" in value):
-                email_col = cell.column
-        if name_col and email_col:
-            return row[0].row + 1, name_col, email_col
-    return 2, 1, 2
-
-
 def load_attendees(excel_path):
+    """Read (name, email) pairs regardless of header language (e.g. Arabic) or
+    extra/empty columns: the email is the cell containing '@', the name is the
+    longest other non-empty cell in the same row."""
     wb = load_workbook(excel_path, read_only=True, data_only=True)
     ws = wb.active
-    start_row, name_col, email_col = _find_columns(ws)
     people = []
     seen_emails = set()
-    for row in ws.iter_rows(min_row=start_row, values_only=True):
-        name = str(row[name_col - 1] or "").strip() if len(row) >= name_col else ""
-        email = str(row[email_col - 1] or "").strip().lower() if len(row) >= email_col else ""
-        if not name or "@" not in email or email in seen_emails:
+    drop = {"\u200a", "\u200b", "\u200e", "\u200f", "\ufeff", "\xa0"}
+    for row in ws.iter_rows(values_only=True):
+        cells = []
+        for value in row:
+            if value is None:
+                continue
+            text = str(value)
+            for ch in drop:
+                text = text.replace(ch, "")
+            text = text.strip()
+            if text:
+                cells.append(text)
+        email = next((c for c in cells if "@" in c), None)
+        if not email:
             continue
+        email = "".join(email.split()).lower()
+        if "@" not in email or email in seen_emails:
+            continue
+        candidates = [c for c in cells if "@" not in c]
+        name = max(candidates, key=len) if candidates else email.split("@")[0]
         seen_emails.add(email)
         people.append((name, email))
     wb.close()

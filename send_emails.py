@@ -94,7 +94,7 @@ def connect_smtp():
 def send_batch(limit=100, dry_run=False, delay=2.0):
     conn = init_db()
     rows = conn.execute(
-        "SELECT name, email, token FROM attendees WHERE sent=0 ORDER BY id LIMIT ?", (limit,)
+        "SELECT id, name, email, token FROM attendees WHERE sent=0 ORDER BY id LIMIT ?", (limit,)
     ).fetchall()
     if not rows:
         conn.close()
