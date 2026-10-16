@@ -121,28 +121,43 @@ def send_batch(limit=100, dry_run=False, delay=2.0, only=None):
     sent = failed = 0
     failures = []
     for i, attendee in enumerate(rows, 1):
-        try:
-            server.send_message(build_message(attendee))
-        except smtplib.SMTPAuthenticationError:
-            server.quit()
-            raise RuntimeError("Gmail rejected the login. Check GMAIL_APP_PASSWORD / that 2-Step Verification is on.")
-        except Exception:
-            time.sleep(10)
+        ok = False
+        last_err = None
+        for _attempt in range(2):
             try:
                 server.send_message(build_message(attendee))
+                ok = True
+                break
+            except smtplib.SMTPAuthenticationError:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+                raise RuntimeError(
+                    "Gmail rejected the login. Check GMAIL_APP_PASSWORD / that 2-Step Verification is on."
+                )
             except Exception as exc:
-                failed += 1
-                failures.append(f"{attendee['email']}: {exc}")
+                last_err = exc
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+                time.sleep(5)
                 try:
                     server = connect_smtp()
-                except Exception:
+                except Exception as exc2:
+                    last_err = exc2
                     break
-                continue
-        sent += 1
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        conn.execute("UPDATE attendees SET sent=1, sent_at=? WHERE id=?", (now, attendee["id"]))
-        conn.commit()
-        print(f"[{i}/{len(rows)}] sent -> {attendee['email']}")
+        if ok:
+            sent += 1
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            conn.execute("UPDATE attendees SET sent=1, sent_at=? WHERE id=?", (now, attendee["id"]))
+            conn.commit()
+            print(f"[{i}/{len(rows)}] SENT  -> {attendee['email']}", flush=True)
+        else:
+            failed += 1
+            failures.append(f"{attendee['email']}: {last_err}")
+            print(f"[{i}/{len(rows)}] SKIP  -> {attendee['email']} ({last_err})", flush=True)
         if i < len(rows):
             time.sleep(delay)
 

@@ -12,7 +12,7 @@ def push():
     if "localhost" in BASE_URL or "127.0.0.1" in BASE_URL:
         print(f"WARNING: BASE_URL is {BASE_URL}. Point it at your live server URL to sync.")
     conn = init_db()
-    rows = conn.execute("SELECT name, email, token FROM attendees").fetchall()
+    rows = conn.execute("SELECT name, email, token, sent, sent_at FROM attendees").fetchall()
     conn.close()
     if not rows:
         print("No attendees in the local database. Run generate.py first.")

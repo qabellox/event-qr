@@ -85,19 +85,21 @@ def admin_import():
             email = str(person.get("email", "")).strip().lower()
             if not token or not name or not email:
                 continue
+            sent = 1 if person.get("sent") else 0
+            sent_at = person.get("sent_at") or None
             existing = conn.execute(
                 "SELECT id FROM attendees WHERE token=? OR email=?", (token, email)
             ).fetchone()
             if existing:
                 conn.execute(
-                    "UPDATE attendees SET name=?, email=? WHERE id=?",
-                    (name, email, existing["id"]),
+                    "UPDATE attendees SET name=?, email=?, sent=?, sent_at=? WHERE id=?",
+                    (name, email, sent, sent_at, existing["id"]),
                 )
                 updated += 1
             else:
                 conn.execute(
-                    "INSERT INTO attendees (name, email, token) VALUES (?, ?, ?)",
-                    (name, email, token),
+                    "INSERT INTO attendees (name, email, token, sent, sent_at) VALUES (?, ?, ?, ?, ?)",
+                    (name, email, token, sent, sent_at),
                 )
                 added += 1
         conn.commit()
